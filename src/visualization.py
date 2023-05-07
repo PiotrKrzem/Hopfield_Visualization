@@ -35,10 +35,8 @@ class ConnectionMarkerData:
     marker: Line3DCollection
 
 class Visualization:
-    def __init__(self, model: Model, inputs:np.ndarray, outputs: np.ndarray) -> None:
+    def __init__(self, model: Model) -> None:
         self.model = model
-        self.inputs = inputs
-        self.outputs = outputs
 
         self.prepare_interface()
         self.prepare_markers()
@@ -146,12 +144,10 @@ class Visualization:
     def update(self):
         idx = randint(0, self.inputs.shape[0] - 1)
         output = self.inputs[idx]
-        expected_output = self.outputs[idx]
-        print(f"Input data: \n{output}\nExpected output: \n{expected_output}")
 
         for layer_idx, layer in enumerate(self.model.layers):
             output_size = layer.output_size
-            # output = np.random.rand(output_size) #TODO REMOVE and activate stuff below
+
             if layer_idx:
                 output = layer(output)
 
