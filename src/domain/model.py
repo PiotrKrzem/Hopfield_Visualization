@@ -3,7 +3,7 @@ from typing import List, Tuple
 from time import time
 import matplotlib.pyplot as plt
 
-from src.domain.layer import InputLayer, HopfieldLayer, OutputLayer
+from src.domain.layer import InputLayer, HopfieldLayer, InvisibleLayer, OutputLayer
 from src.argparser import Arguments
 
 # -------------------------- HOPFIELD MODEL ------------------------------
@@ -24,7 +24,9 @@ class Model:
 
         self.layers = [
             self.input_layer,
+            InvisibleLayer(input_size),
             self.hopfield_layer,
+            InvisibleLayer(input_size),
             self.output_layer
         ]
 

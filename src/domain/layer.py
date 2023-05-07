@@ -92,3 +92,19 @@ class OutputLayer(Layer):
 
     def _update_weights(self, weights_diff: np.ndarray):
         return
+
+class InvisibleLayer(Layer):
+    """
+    Special layer used only by the GUI for drawing purposes.
+    """
+    def __init__(self, input_size: int) -> None:
+        super().__init__(input_size, input_size, Activation.LINEAR)
+    
+    def __call__(self, inputs: np.ndarray) -> np.ndarray:
+        return inputs
+
+    def _construct(self):
+        return
+
+    def _update_weights(self, weights_diff: np.ndarray):
+        return
