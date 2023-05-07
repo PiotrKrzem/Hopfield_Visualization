@@ -34,7 +34,7 @@ def parse_args():
         elif opt == '-s':
             arguments.save_model = bool(arg) 
         elif opt == '-n':
-            arguments.model_name = bool(arg) 
+            arguments.model_name = str(arg) 
 
     if arguments.model_to_load != "":
         print(f'Model to load: {arguments.model_to_load}')
