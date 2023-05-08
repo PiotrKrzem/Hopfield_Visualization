@@ -170,5 +170,9 @@ class Model:
         patterns: np.ndarray
         with open(f"{file_path}", "r") as file:
             pattern_strings = file.readlines()
-            patterns = np.loadtxt(pattern_strings, delimiter=' ', dtype=np.int64)
+            pattern_vals = np.loadtxt(pattern_strings, delimiter=' ', dtype=np.int64)
+            patterns = np.zeros((len(pattern_strings), pattern_vals.shape[0]))
+
+            for idx, _ in enumerate(pattern_strings):
+                patterns[idx] = pattern_vals
         return patterns
