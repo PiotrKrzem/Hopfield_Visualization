@@ -6,8 +6,6 @@ from src.visualization import Visualization
 def main() -> None: 
     arguments = parse_args()
     model = Model.from_args(arguments)
-
-    model.test(print_outputs=True)
     Visualization(model)
 
 if __name__ == "__main__":

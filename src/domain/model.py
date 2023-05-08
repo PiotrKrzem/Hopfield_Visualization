@@ -143,6 +143,7 @@ class Model:
 
         if arguments.patterns_file != "":
             patterns = Model.get_patterns(get_file_path("example_patterns", f"{arguments.patterns_file}.txt"))
+            print(f"Training patterns:\n{patterns}")
             model.train(patterns)
 
         if arguments.save_model:

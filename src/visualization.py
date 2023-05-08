@@ -45,7 +45,7 @@ def interpolate_color(values: np.ndarray):
     for idx, hue in enumerate(hues):
         colors[idx, :] = hsv_to_rgb(hue/360, 1., 1.)
 
-    return colors
+    return colors # np.flipud(colors)
 
 def add_button(figure: Figure, x, y, w, h):
     def make_button_callback(figure: Figure, button: Button):
@@ -113,7 +113,7 @@ class Visualization:
         self.input_vectors = []
         self.input_vector_buttons = [0]*self.model.input_size
         for idx in range(self.model.input_size):
-            self.input_vector_buttons[idx] = add_button(self.figure,  0.05*(idx//side_length), 0.95 - 0.05*(idx%side_length), 0.05, 0.05)
+            self.input_vector_buttons[idx] = add_button(self.figure,  0.05*(idx%side_length), 0.95 - 0.05*(idx//side_length), 0.05, 0.05)
 
         add_to_training_button_axis = self.figure.add_axes([0, 0.95 - 0.05*side_length, 0.05*side_length/2, 0.05])
         self.add_to_training_button = Button(add_to_training_button_axis, 'Add to train')
@@ -139,9 +139,9 @@ class Visualization:
                 approx_side_length_incr = 1 if int(approx_side_length)*int(approx_side_length) < layer.output_size else 0
                 side_length = int(approx_side_length) + approx_side_length_incr
 
-                xz_start_value = -MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length // 2
-                x_range = np.linspace(0, MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length, side_length) + xz_start_value
-                z_range = np.linspace(0, MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length, side_length) + xz_start_value
+                xz_start_value = MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length // 2
+                x_range = np.linspace(MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * (side_length - 1), -side_length, side_length) + xz_start_value
+                z_range = np.linspace(MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * (side_length - 1), -side_length, side_length) + xz_start_value
 
                 x_grid, z_grid = np.meshgrid(x_range, z_range)
                 x_grid, z_grid = x_grid.flatten(), z_grid.flatten()
@@ -150,9 +150,9 @@ class Visualization:
                 approx_side_length = np.sqrt(layer.output_size)
                 approx_side_length_incr = 1 if int(approx_side_length)*int(approx_side_length) < layer.output_size else 0
                 side_length = int(approx_side_length) + approx_side_length_incr
-                xz_start_value = -MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length // 2
-                x_range = np.linspace(0, MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length, side_length) + xz_start_value
-                z_range = np.linspace(0, MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length, side_length) + xz_start_value
+                xz_start_value = MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * side_length // 2
+                x_range = np.linspace(MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * (side_length - 1), -side_length, side_length) + xz_start_value
+                z_range = np.linspace(MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX * (side_length - 1), -side_length, side_length) + xz_start_value
                 x_grid, z_grid = np.meshgrid(x_range, z_range)
                 x_grid, z_grid = x_grid.flatten(), z_grid.flatten()
                 y_grid = np.full((x_grid.shape[0]), layer_width_div * layer_idx)
@@ -226,18 +226,18 @@ class Visualization:
             if isinstance(dst_neurons_data.layer, InvisibleLayer) :
                 dst_x, dst_y, dst_z = dst_neurons_data.xyz
                 src_x, src_y, src_z = dst_neurons_data.xyz
-                offset_z = dst_z[-1] - dst_z[0] + MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX
+                offset_z = dst_z[0] - dst_z[-1] + MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX
                 src_z = src_z.copy()
-                dst_z = dst_z.copy() - offset_z
+                dst_z = dst_z.copy() + offset_z
                 
             elif isinstance(dst_neurons_data.layer, HopfieldLayer):
                 new_dst_neurons_data = self.layers_neurons_data[layer_idx + 1]
                 src_neurons_data = self.layers_neurons_data[layer_idx - 1]
                 dst_x, dst_y, dst_z = new_dst_neurons_data.xyz
                 src_x, src_y, src_z = src_neurons_data.xyz
-                offset_z = dst_z[-1] - dst_z[0] + MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX
-                src_z = src_z.copy() - offset_z
-                dst_z = dst_z.copy() - offset_z
+                offset_z = dst_z[0] - dst_z[-1] + MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX
+                src_z = src_z.copy() + offset_z
+                dst_z = dst_z.copy() + offset_z
 
             delta_x = dst_x - src_x
             delta_y = dst_y - src_y
@@ -393,16 +393,17 @@ class Visualization:
         print(f"Model has been trained")
         self.update_idx = 0
         self.clean_model()
+        self.clean_outputs()
 
     def test_model(self, event):
         input_vector = np.zeros((self.model.input_size))
         for idx, btn in enumerate(self.input_vector_buttons):
             input_vector[idx] = 1 if btn.white else -1
-
         print(f"Test on:\n{input_vector}")
         self.input = input_vector
         self.update_idx = 0
         self.clean_model()
+        self.clean_outputs()
         self.update()
 
     def draw_output(self):
@@ -413,9 +414,11 @@ class Visualization:
             if np.array_equal(vector, self.input):
                 return
 
+        print(f"New Unique Output:\n{self.input}")
         image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
         img = normalized_output.reshape(reshape_to, reshape_to)
-        image_axis.matshow(np.rot90(img, 3), cmap = ListedColormap(['red','green']))
+        #img = np.rot90(img, 3)
+        image_axis.matshow(img, cmap = ListedColormap(['red','green']))
         self.output_vectors.append(self.input.copy())
         self.output_axes.append(image_axis)
 
@@ -428,4 +431,11 @@ class Visualization:
         for data in self.wrap_connections_data:
             data.marker.set_color(DEFAULT_LINE_COLOR)
             data.marker.set_linewidth(0.4)
+        self.figure.canvas.draw()
+
+    def clean_outputs(self):
+        for axis in self.output_axes:
+            axis.remove()
+        self.output_axes.clear()
+        self.output_vectors.clear()
         self.figure.canvas.draw()
