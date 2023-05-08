@@ -392,20 +392,17 @@ class Visualization:
         self.input_vectors.clear()
         print(f"Model has been trained")
         self.update_idx = 0
-        self.input = np.zeros((self.model.input_size))
-        self.update()
+        self.clean_model()
 
     def test_model(self, event):
         input_vector = np.zeros((self.model.input_size))
         for idx, btn in enumerate(self.input_vector_buttons):
             input_vector[idx] = 1 if btn.white else -1
-            btn.white = False
-            btn.color = 'red'
-            btn.hovercolor = 'red'
 
         print(f"Test on:\n{input_vector}")
         self.input = input_vector
         self.update_idx = 0
+        self.clean_model()
         self.update()
 
     def draw_output(self):
@@ -417,6 +414,18 @@ class Visualization:
                 return
 
         image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
-        image_axis.matshow(normalized_output.reshape(reshape_to, reshape_to), cmap = ListedColormap(['red','green']))
+        img = normalized_output.reshape(reshape_to, reshape_to)
+        image_axis.matshow(np.rot90(img, 3), cmap = ListedColormap(['red','green']))
         self.output_vectors.append(self.input.copy())
         self.output_axes.append(image_axis)
+
+    def clean_model(self):
+        for data in self.layers_neurons_data:
+            data.marker.set_color('white')
+        for data in self.layers_connections_data:
+            data.marker.set_color(DEFAULT_LINE_COLOR)
+            data.marker.set_linewidth(0.4)
+        for data in self.wrap_connections_data:
+            data.marker.set_color(DEFAULT_LINE_COLOR)
+            data.marker.set_linewidth(0.4)
+        self.figure.canvas.draw()
