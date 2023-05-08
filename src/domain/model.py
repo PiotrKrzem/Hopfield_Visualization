@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from src.domain.layer import InputLayer, HopfieldLayer, InvisibleLayer, OutputLayer
 from src.argparser import Arguments
 
+from src.path_parser import get_file_path
+
+
 # -------------------------- HOPFIELD MODEL ------------------------------
 class Model:
     def __init__(self, input_size: int, name = "model") -> None:
@@ -70,24 +73,14 @@ class Model:
             outputs = [first_output, second_output]
         return outputs
 
-    def _backward(self) -> None:
-        """    
-        Method performs backward propagation in model training
-            
-        Parameters:
-        TODO
-        """
-        return
-
     def train(self, patterns: np.ndarray) -> None:
         """
         Trains the model to remember given patterns.
         
         Parameters:
         patterns: array containing patterns to put into hopfield memory
-        TODO
         """
-        return
+        self.hopfield_layer._initialize_weights(patterns)
     
     def test(self, inputs: np.ndarray = None, print_outputs = False):
         """
@@ -124,7 +117,7 @@ class Model:
         """
         Saves model to the saved_models directory.
         """
-        path = f"saved_models/{self.name}_{time()}"
+        path = get_file_path("saved_models", f"{self.name}_{time()}")
         np.save(path, self.hopfield_layer.weights)
         print(f"Model saved to: {path}.npy")
 
@@ -152,13 +145,13 @@ class Model:
         """
         model: cls
         if arguments.model_to_load != "":
-            model = Model.load(f"saved_models/{arguments.model_to_load}.npy")
+            model = Model.load(get_file_path("saved_models", f"{arguments.model_to_load}.npy"))
         else:
             model = Model(arguments.input_size)
         model.name = arguments.model_name
 
         if arguments.patterns_file != "":
-            patterns = Model.get_patterns(f"example_patterns/{arguments.patterns_file}.txt")
+            patterns = Model.get_patterns(get_file_path("example_patterns", f"{arguments.patterns_file}.txt"))
             model.train(patterns)
 
         if arguments.save_model:
@@ -177,7 +170,5 @@ class Model:
         patterns: np.ndarray
         with open(f"{file_path}", "r") as file:
             pattern_strings = file.readlines()
-            patterns = np.zeros((len(pattern_strings), len(pattern_strings[0])))
-            for idx, pattern_string in enumerate(pattern_strings):
-                patterns[idx,:] = np.array([int(nr) for nr in pattern_string])
+            patterns = np.loadtxt(pattern_strings, delimiter=' ', dtype=np.int64)
         return patterns

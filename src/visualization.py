@@ -392,6 +392,7 @@ class Visualization:
         self.input_vectors.clear()
         print(f"Model has been trained")
         self.update_idx = 0
+        self.input = np.zeros((self.model.input_size))
         self.update()
 
     def test_model(self, event):
