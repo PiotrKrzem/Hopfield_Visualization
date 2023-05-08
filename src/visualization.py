@@ -2,11 +2,16 @@ import numpy as np
 from sys import stdout
 from typing import List
 from random import randint
+from colorsys import hsv_to_rgb
 from dataclasses import dataclass
+
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from mpl_toolkits.mplot3d.axes3d import Axes3D
+from matplotlib.figure import Figure
+from matplotlib.widgets import Button
+from matplotlib.colors import ListedColormap
+# from mpl_toolkits.mplot3d.axes3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.collections import PathCollection
 
@@ -17,11 +22,50 @@ from random import seed as r_seed
 from numpy.random import seed as n_seed
 r_seed(69), n_seed(69)
 
+# Model rendering settings
 MODEL_DEPTH_PX = 40
 MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX = 20
 MODEL_INVISIBLE_NEURONS_Y_OFFSET_PX = 1
-MULTIPLY_LINE_WIDTHS = 1
-MINIMUM_LINE_WIDTH = 1
+# Line rendering settings
+MULTIPLY_LINE_WIDTHS = 0.5
+MINIMUM_LINE_WIDTH = 0.2
+DEFAULT_LINE_COLOR = [31/256,119/256,180/256,1]
+# Colors for Interpolate (HSV angle)
+RED, YELLOW, GREEN = range(0, 180, 60)
+
+def interpolate_color(values: np.ndarray):
+    """ 
+    Convert values in the range 0...1 to a color in the range start_color to stop_color.
+    """
+    startcolor = RED
+    stopcolor = GREEN
+
+    colors = np.zeros((values.shape[0], 3))
+    hues = values * (stopcolor - startcolor) + startcolor
+    for idx, hue in enumerate(hues):
+        colors[idx, :] = hsv_to_rgb(hue/360, 1., 1.)
+
+    return colors
+
+def add_button(figure: Figure, x, y, w, h):
+    def make_button_callback(figure: Figure, button: Button):
+        def callback(event):
+            if button.white:
+                button.white = False
+                button.color = 'red'
+                button.hovercolor = 'red'
+            else:
+                button.white = True
+                button.color = 'green'
+                button.hovercolor = 'green'
+            figure.canvas.draw()
+        return callback
+
+    button_axis = figure.add_axes([x,y,w,h])
+    button = Button(button_axis, '', None, 'red', 'red')
+    button.white = False # setattr(button, 'white', False)
+    button.on_clicked(make_button_callback(figure, button))
+    return button
 @dataclass
 class NeuronMarkersData:
     xyz: List[np.ndarray]
@@ -38,6 +82,7 @@ class Visualization:
         self.update_idx = -1
 
         self.prepare_interface()
+        self.prepare_train_test_buttons()
         self.prepare_markers()
         plt.show()
 
@@ -47,7 +92,7 @@ class Visualization:
         self.figure.canvas.mpl_connect('button_press_event', self.on_mouse_press)
         self.figure.canvas.mpl_connect('close_event', self.on_exit)
 
-        self.axis:Axes = self.figure.add_subplot(111, projection='3d')
+        self.axis:Axes = self.figure.add_subplot(111, projection='3d') # Axes3D
         self.axis.spines['bottom'].set(color = 'white', linewidth = 0)
         self.axis.spines['top'].set(color = 'white', linewidth = 0)
         self.axis.spines['left'].set(color = 'white', linewidth = 0)
@@ -60,9 +105,33 @@ class Visualization:
         self.axis.set_facecolor([0.1,0.1,0.1])
         self.figure.set_facecolor([0.1,0.1,0.1])
 
+    def prepare_train_test_buttons(self):
+        approx_side_length = np.sqrt(self.model.input_size)
+        approx_side_length_incr = 1 if int(approx_side_length)*int(approx_side_length) < self.model.input_size else 0
+        side_length = int(approx_side_length) + approx_side_length_incr
+
+        self.input_vectors = []
+        self.input_vector_buttons = [0]*self.model.input_size
+        for idx in range(self.model.input_size):
+            self.input_vector_buttons[idx] = add_button(self.figure,  0.05*(idx//side_length), 0.95 - 0.05*(idx%side_length), 0.05, 0.05)
+
+        add_to_training_button_axis = self.figure.add_axes([0, 0.95 - 0.05*side_length, 0.05*side_length/2, 0.05])
+        self.add_to_training_button = Button(add_to_training_button_axis, 'Add to train')
+        self.add_to_training_button.on_clicked(self.add_to_training)
+
+        training_button_axis = self.figure.add_axes([0.05*side_length/2, 0.95 - 0.05*side_length, 0.05*side_length/2, 0.05])
+        self.training_button = Button(training_button_axis, 'Train')
+        self.training_button.on_clicked(self.train_model)
+
+        test_button_axis = self.figure.add_axes([0, 0.95 - 0.05*(side_length + 1), 0.05*side_length, 0.05])
+        self.test_button = Button(test_button_axis, 'Test on pattern')
+        self.test_button.on_clicked(self.test_model)
+
+        self.output_vectors = []
+        self.output_axes = []
+
     def prepare_markers(self):
         layer_width_div = MODEL_DEPTH_PX // (len(self.model.layers) - 1)
-
         self.layers_neurons_data: List[NeuronMarkersData] = []
         for layer_idx, layer in enumerate(self.model.layers):
             if layer_idx == 0 or layer_idx == len(self.model.layers) - 1:
@@ -140,7 +209,8 @@ class Visualization:
                 src_x, src_y, src_z,
                 delta_x, delta_y, delta_z,
                 arrow_length_ratio = 0,
-                linewidths = 0.4
+                linewidths = 0.4,
+                color = DEFAULT_LINE_COLOR
             )
             self.layers_connections_data.append(
                 ConnectionMarkerData(
@@ -192,7 +262,7 @@ class Visualization:
 
         # Values for update_idx are hardcoded since the amount of layers is static (5).
         # Update idx determines which part of the network is visually updated
-        #
+        # 
         # 0  1   2+6i 3+6i 4+6i 5+6i 6+6i
         # o --- x --- o --- x --- o
         #  7+6i |           | 5+6 
@@ -200,10 +270,10 @@ class Visualization:
         #            6+6i
 
         for data in self.layers_connections_data:
-            data.marker.set_color([31/256,119/256,180/256,1])
+            data.marker.set_color(DEFAULT_LINE_COLOR)
             data.marker.set_linewidth(0.4)
         for data in self.wrap_connections_data:
-            data.marker.set_color([31/256,119/256,180/256,1])
+            data.marker.set_color(DEFAULT_LINE_COLOR)
             data.marker.set_linewidth(0.4)
 
         # Before cycle
@@ -215,15 +285,14 @@ class Visualization:
                 self.input = layer(self.input)
 
             normalized_output = self.input - self.input.min()
-            normalized_output = normalized_output / normalized_output.max()
+            normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
 
-            color = np.tile(np.array([[1,1,1]]), (output_size, 1)) * np.tile(normalized_output[np.newaxis].T, 3)
+            color = interpolate_color(normalized_output)
             alpha = np.ones((output_size, 1))
             color_rgba = np.hstack((color, alpha))
             if self.update_idx == 0:
                 self.layers_neurons_data[0].marker.set_color(color_rgba)
             else:
-                next_layer_output_size = self.model.layers[1].output_size
                 widths = normalized_output
                 self.layers_connections_data[0].marker.set_color(color_rgba)
                 self.layers_connections_data[0].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH)
@@ -249,9 +318,9 @@ class Visualization:
                 self.input = layer(self.input)
 
             normalized_output = self.input - self.input.min()
-            normalized_output = normalized_output / normalized_output.max()
+            normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
 
-            color = np.tile(np.array([[1,1,1]]), (output_size, 1)) * np.tile(normalized_output[np.newaxis].T, 3)
+            color = interpolate_color(normalized_output)
             alpha = np.ones((output_size, 1))
             color_rgba = np.hstack((color, alpha))
 
@@ -268,18 +337,20 @@ class Visualization:
                 self.wrap_connections_data[wrap_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH) # color == widths in this case
 
             # Update main structure
-            if self.update_idx % 6 == 3 or self.update_idx % 6 == 0:
+            if self.update_idx % 6 == 3:
                 self.layers_neurons_data[layer_idx].marker.set_color(color_rgba)
-            else:
-                if self.update_idx % 6 != 1: # Only loop below the structure updates
-                    next_layer_output_size = self.model.layers[layer_idx + 1].output_size
-                    if self.update_idx % 6 == 2:
-                        color_rgba = np.tile(color_rgba, (1,1,next_layer_output_size)).reshape(output_size * next_layer_output_size,4)
-                        widths = np.tile(normalized_output, (1,next_layer_output_size)).reshape(output_size * next_layer_output_size)
-                    else:
-                        widths = normalized_output
-                    self.layers_connections_data[layer_idx].marker.set_color(color_rgba) # NOT layer_idx + 1 because this array's size is one less
-                    self.layers_connections_data[layer_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH)
+            elif self.update_idx % 6 == 0:
+                self.layers_neurons_data[layer_idx].marker.set_color(color_rgba)
+                self.draw_output()
+            elif self.update_idx % 6 != 1: 
+                next_layer_output_size = self.model.layers[layer_idx + 1].output_size
+                if self.update_idx % 6 == 2:
+                    color_rgba = np.tile(color_rgba, (1, 1, next_layer_output_size)).reshape(output_size * next_layer_output_size, 4)
+                    widths = np.tile(normalized_output[:,np.newaxis], (1, next_layer_output_size)).reshape(output_size * next_layer_output_size)
+                else:
+                    widths = normalized_output
+                self.layers_connections_data[layer_idx].marker.set_color(color_rgba) # NOT layer_idx + 1 because this array's size is one less
+                self.layers_connections_data[layer_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH)
 
         self.update_idx += 1
         self.figure.canvas.draw()
@@ -298,3 +369,53 @@ class Visualization:
 
     def on_exit(self, event):
         return
+
+    def add_to_training(self, event):
+        input_vector = np.zeros((self.model.input_size))
+        for idx, btn in enumerate(self.input_vector_buttons):
+            input_vector[idx] = 1 if btn.white else -1
+            btn.white = False
+            btn.color = 'red'
+            btn.hovercolor = 'red'
+
+        self.input_vectors.append(input_vector)
+        self.figure.canvas.draw()
+        print(f"Added vector to training set:\n{input_vector}")
+
+    def train_model(self, event):
+        input_vectors = np.array(self.input_vectors)
+        for axis in self.output_axes:
+            axis.remove()
+        self.output_axes.clear()
+        self.output_vectors.clear()
+        self.model.train(input_vectors)
+        self.input_vectors.clear()
+        print(f"Model has been trained")
+        self.update_idx = 0
+        self.update()
+
+    def test_model(self, event):
+        input_vector = np.zeros((self.model.input_size))
+        for idx, btn in enumerate(self.input_vector_buttons):
+            input_vector[idx] = 1 if btn.white else -1
+            btn.white = False
+            btn.color = 'red'
+            btn.hovercolor = 'red'
+
+        print(f"Test on:\n{input_vector}")
+        self.input = input_vector
+        self.update_idx = 0
+        self.update()
+
+    def draw_output(self):
+        normalized_output:np.ndarray = self.input - self.input.min()
+        normalized_output = normalized_output / (normalized_output.max() + 1.0e-9)
+        reshape_to = int(np.ceil(np.sqrt(normalized_output.shape[0])))
+        for vector in self.output_vectors:
+            if np.array_equal(vector, self.input):
+                return
+
+        image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
+        image_axis.matshow(normalized_output.reshape(reshape_to, reshape_to), cmap = ListedColormap(['red','green']))
+        self.output_vectors.append(self.input.copy())
+        self.output_axes.append(image_axis)

@@ -68,7 +68,7 @@ class InputLayer(Layer):
 
 class HopfieldLayer(Layer):
     def __init__(self, input_size: int) -> None:
-        super().__init__(input_size, input_size, Activation.LINEAR)
+        super().__init__(input_size, input_size, Activation.THRESHOLD)
     
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         output = self.activation(np.dot(self.weights, inputs))
