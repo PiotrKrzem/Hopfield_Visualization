@@ -34,7 +34,7 @@ class Layer:
         self.output_size = output_size
         self.activation = activation
 
-        self.weights = np.zeros(input_size)
+        self.weights = np.zeros((output_size, input_size))
 
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         """
@@ -71,17 +71,18 @@ class InputLayer(Layer):
 
 class HopfieldLayer(Layer):
     def __init__(self, input_size: int) -> None:
-        super().__init__(input_size, input_size, Activation.LINEAR)
+        super().__init__(input_size, input_size, Activation.THRESHOLD)
 
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
-        return self.activation(np.dot(self.weights, inputs))
+        output = self.activation(np.dot(self.weights, inputs))
+        return output
 
     def _initialize_weights(self, patterns: np.ndarray) -> None:
         is_bipolar = (patterns == -1).any()
         transform_pattern = Weights.BIPOLAR if is_bipolar == True else Weights.UNIPOLAR
         pattern_matrix = transform_pattern(patterns)
 
-        self.weights = (1 / self.weights.shape[0]) * pattern_matrix.T @ pattern_matrix
+        self.weights = (1 / self.input_size) * pattern_matrix.T @ pattern_matrix
         np.fill_diagonal(self.weights, 0)
 
 

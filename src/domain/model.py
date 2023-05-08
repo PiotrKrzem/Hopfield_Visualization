@@ -99,18 +99,9 @@ class Model:
         if print_outputs:
             for idx in range(len(inputs)):
                 if len(outputs[idx]) != 1:
-                    print(f"""Input:\n
-                          {inputs[idx]}\n
-                          Outputs:\n
-                          {outputs[idx][0]}\n
-                          {outputs[idx][1]}\n
-                          Failed to converge""")
+                    print(f"Input:\n {inputs[idx]}\nOutputs:\n{outputs[idx][0]}\n{outputs[idx][1]}""")
                 else:
-                    print(f"""Input:\n
-                          {inputs[idx]}\n
-                          Output:\n
-                          {outputs[idx][0]}\n
-                          Converged succesfully""")
+                    print(f"Input:\n{inputs[idx]}\nOutput:\n{outputs[idx][0]}")
         return outputs
 
     def save(self):
@@ -152,6 +143,7 @@ class Model:
 
         if arguments.patterns_file != "":
             patterns = Model.get_patterns(get_file_path("example_patterns", f"{arguments.patterns_file}.txt"))
+            print(f"Training patterns:\n{patterns}")
             model.train(patterns)
 
         if arguments.save_model:
