@@ -45,7 +45,7 @@ def interpolate_color(values: np.ndarray):
     for idx, hue in enumerate(hues):
         colors[idx, :] = hsv_to_rgb(hue/360, 1., 1.)
 
-    return colors # np.flipud(colors)
+    return colors
 
 def add_button(figure: Figure, x, y, w, h):
     def make_button_callback(figure: Figure, button: Button):
@@ -284,8 +284,11 @@ class Visualization:
             if self.update_idx == 1:
                 self.input = layer(self.input)
 
-            normalized_output = self.input - self.input.min()
-            normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
+            if np.all(self.input == 1):
+                normalized_output = self.input.copy()
+            else:
+                normalized_output = self.input - self.input.min()
+                normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
 
             color = interpolate_color(normalized_output)
             alpha = np.ones((output_size, 1))
@@ -317,8 +320,11 @@ class Visualization:
             if self.update_idx % 6 == 3:
                 self.input = layer(self.input)
 
-            normalized_output = self.input - self.input.min()
-            normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
+            if np.all(self.input == 1):
+                normalized_output = self.input.copy()
+            else:
+                normalized_output = self.input - self.input.min()
+                normalized_output = normalized_output / (normalized_output.max()+1.0e-9)
 
             color = interpolate_color(normalized_output)
             alpha = np.ones((output_size, 1))
@@ -412,13 +418,23 @@ class Visualization:
         reshape_to = int(np.ceil(np.sqrt(normalized_output.shape[0])))
         for vector in self.output_vectors:
             if np.array_equal(vector, self.input):
+                if len(self.output_vectors) == 1:
+                    print("Converged on above response")
+                elif len(self.output_vectors) == 2:
+                    print("Entered a loop of length 2")
+                else:
+                    print(f"Entered a loop of len {len(self.output_vectors)}")
                 return
 
         print(f"New Unique Output:\n{self.input}")
         image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
         img = normalized_output.reshape(reshape_to, reshape_to)
-        #img = np.rot90(img, 3)
-        image_axis.matshow(img, cmap = ListedColormap(['red','green']))
+        if np.all(self.input == 1):
+            image_axis.matshow(img, cmap = ListedColormap(['green']))
+        elif np.all(self.input == -1):
+            image_axis.matshow(img, cmap = ListedColormap(['red']))
+        else:
+            image_axis.matshow(img, cmap = ListedColormap(['red','green']))
         self.output_vectors.append(self.input.copy())
         self.output_axes.append(image_axis)
 
