@@ -6,16 +6,25 @@ from enum import Enum
 # ------------------------- ACTIVATION FUNCTION -------------------------
 
 # Enum storing available activation functions
+
 class Activation(Enum):
     LINEAR: Callable[[np.ndarray], np.ndarray] = lambda input: input
-    THRESHOLD: Callable[[np.ndarray], np.ndarray] = lambda input: 2 * (input >= 0) - 1
+    THRESHOLD: Callable[[np.ndarray],
+                        np.ndarray] = lambda input: 2 * (input >= 0) - 1
+    
 
-# ------------------------- NETWORK LAYER ---------------------------
+class Weights(Enum):
+    BIPOLAR: Callable[[np.ndarray], np.ndarray] = lambda input: input
+    UNIPOLAR: Callable[[np.ndarray], np.ndarray] = lambda input: 2 * input - 1
+
+# ------------------------- NETWORK LAYER -------------------------------
+
+
 class Layer:
     def __init__(self, input_size: int, output_size: int, activation: Activation) -> None:
         """
         Initializes the layer.
-        
+
         Parameters:
         input_size - number of input values
         input_size - number of neurons for a given layer, amount of output values
@@ -25,86 +34,78 @@ class Layer:
         self.output_size = output_size
         self.activation = activation
 
-        self.weights: np.ndarray
-        self._construct()
+        self.weights = np.zeros(input_size)
 
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         """
         Triggers activation of neurons in the layer, computes layer output.
-        
+
         Parameters:
         inputs - input received by the layer
         """
-        raise NotImplementedError(f"{self} is missing implementation of __call__ method")
+        raise NotImplementedError(
+            f"{self} is missing implementation of __call__ method")
 
-    def _construct(self) -> None:
+    def _initialize_weights(self, patterns: np.ndarray) -> None:
         """
-        Constructs the layer (sets weights).
-        """
-        raise NotImplementedError(f"{self} is missing implementation of _construct method")
+        Initializes the layer weights (sets initial weights).
 
-    def _update_weights(self, weights_diff: np.ndarray) -> None:
-        """
-        Method updates the weights in a given layer
-        
         Parameters:
-        weights_diff - ndarray of differences in weights
+        patterns - array containing patterns to put into hopfield memory
         """
-        raise NotImplementedError(f"{self} is missing implementation of _update_weights method")
+        raise NotImplementedError(
+            f"{self} is missing implementation of _initialize_weights method")
+
 
 # ------------------------- LAYER INSTANCES ---------------------------
 class InputLayer(Layer):
     def __init__(self, input_size: int) -> None:
         super().__init__(input_size, input_size, Activation.LINEAR)
-    
+
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         return inputs
 
-    def _construct(self):
+    def _initialize_weights(self, patterns: np.ndarray) -> None:
         return
 
-    def _update_weights(self, weights_diff: np.ndarray):
-        return
 
 class HopfieldLayer(Layer):
     def __init__(self, input_size: int) -> None:
         super().__init__(input_size, input_size, Activation.LINEAR)
-    
+
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         return self.activation(np.dot(self.weights, inputs))
 
-    def _construct(self):
-        self.weights = np.random.randn(self.output_size, self.input_size)
+    def _initialize_weights(self, patterns: np.ndarray) -> None:
+        is_bipolar = (patterns == -1).any()
+        transform_pattern = Weights.BIPOLAR if is_bipolar == True else Weights.UNIPOLAR
+        pattern_matrix = transform_pattern(patterns)
 
-    def _update_weights(self, weights_diff: np.ndarray):
-        # TODO
-        self.weights = self.weights - weights_diff.reshape(self.output_size, self.input_size)
+        self.weights = (1 / self.weights.shape[0]) * pattern_matrix.T @ pattern_matrix
+        np.fill_diagonal(self.weights, 0)
+
 
 class OutputLayer(Layer):
     def __init__(self, input_size: int) -> None:
         super().__init__(input_size, input_size, Activation.LINEAR)
-    
+
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         return inputs
 
-    def _construct(self):
+    def _initialize_weights(self, patterns: np.ndarray) -> None:
         return
 
-    def _update_weights(self, weights_diff: np.ndarray):
-        return
 
 class InvisibleLayer(Layer):
     """
     Special layer used only by the GUI for drawing purposes.
     """
+
     def __init__(self, input_size: int) -> None:
         super().__init__(input_size, input_size, Activation.LINEAR)
-    
+
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
         return inputs
 
-    def _construct(self):
-        return
-
-    def _update_weights(self, weights_diff: np.ndarray):
+    def _initialize_weights(self, patterns: np.ndarray) -> None:
         return
