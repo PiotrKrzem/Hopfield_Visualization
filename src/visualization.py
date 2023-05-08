@@ -20,8 +20,8 @@ r_seed(69), n_seed(69)
 MODEL_DEPTH_PX = 40
 MODEL_VISIBLE_NEURONS_XZ_DISTANCE_PX = 20
 MODEL_INVISIBLE_NEURONS_Y_OFFSET_PX = 1
-MULTIPLY_LINE_WIDTHS = 2
-
+MULTIPLY_LINE_WIDTHS = 1
+MINIMUM_LINE_WIDTH = 1
 @dataclass
 class NeuronMarkersData:
     xyz: List[np.ndarray]
@@ -224,10 +224,9 @@ class Visualization:
                 self.layers_neurons_data[0].marker.set_color(color_rgba)
             else:
                 next_layer_output_size = self.model.layers[1].output_size
-                color_rgba = np.tile(color_rgba, (1,1,next_layer_output_size)).reshape(output_size * next_layer_output_size,4)
-                widths = np.tile(normalized_output, (1,next_layer_output_size)).reshape(output_size * next_layer_output_size)
-                self.layers_connections_data[0].marker.set_color(color_rgba) # NOT layer_idx + 1 because this array's size is one less
-                self.layers_connections_data[0].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths)
+                widths = normalized_output
+                self.layers_connections_data[0].marker.set_color(color_rgba)
+                self.layers_connections_data[0].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH)
         # Cycle
         else:
             if self.update_idx % 6 == 2:
@@ -256,18 +255,7 @@ class Visualization:
             alpha = np.ones((output_size, 1))
             color_rgba = np.hstack((color, alpha))
 
-            # Update main structure
-            if self.update_idx % 6 == 3 or self.update_idx % 6 == 0:
-                self.layers_neurons_data[layer_idx].marker.set_color(color_rgba)
-            else:
-                if self.update_idx % 6 != 1:
-                    next_layer_output_size = self.model.layers[layer_idx + 1].output_size
-                    color_rgba = np.tile(color_rgba, (1,1,next_layer_output_size)).reshape(output_size * next_layer_output_size,4)
-                    widths = np.tile(normalized_output, (1,next_layer_output_size)).reshape(output_size * next_layer_output_size)
-                    self.layers_connections_data[layer_idx].marker.set_color(color_rgba) # NOT layer_idx + 1 because this array's size is one less
-                    self.layers_connections_data[layer_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths)
-
-            # Update loop below the structure
+            # Update loop below the structure (before main structure since it can edit color_rgba)
             if self.update_idx % 6 in [5,0,1]:
                 if self.update_idx % 6 == 5:
                     wrap_idx = 2
@@ -277,7 +265,21 @@ class Visualization:
                     wrap_idx = 0
                 widths = normalized_output
                 self.wrap_connections_data[wrap_idx].marker.set_color(color_rgba)
-                self.wrap_connections_data[wrap_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths) # color == widths in this case
+                self.wrap_connections_data[wrap_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH) # color == widths in this case
+
+            # Update main structure
+            if self.update_idx % 6 == 3 or self.update_idx % 6 == 0:
+                self.layers_neurons_data[layer_idx].marker.set_color(color_rgba)
+            else:
+                if self.update_idx % 6 != 1: # Only loop below the structure updates
+                    next_layer_output_size = self.model.layers[layer_idx + 1].output_size
+                    if self.update_idx % 6 == 2:
+                        color_rgba = np.tile(color_rgba, (1,1,next_layer_output_size)).reshape(output_size * next_layer_output_size,4)
+                        widths = np.tile(normalized_output, (1,next_layer_output_size)).reshape(output_size * next_layer_output_size)
+                    else:
+                        widths = normalized_output
+                    self.layers_connections_data[layer_idx].marker.set_color(color_rgba) # NOT layer_idx + 1 because this array's size is one less
+                    self.layers_connections_data[layer_idx].marker.set_linewidth(MULTIPLY_LINE_WIDTHS * widths + MINIMUM_LINE_WIDTH)
 
         self.update_idx += 1
         self.figure.canvas.draw()

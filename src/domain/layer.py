@@ -71,7 +71,8 @@ class HopfieldLayer(Layer):
         super().__init__(input_size, input_size, Activation.LINEAR)
     
     def __call__(self, inputs: np.ndarray) -> np.ndarray:
-        return self.activation(np.dot(self.weights, inputs))
+        output = self.activation(np.dot(self.weights, inputs))
+        return output
 
     def _construct(self):
         self.weights = np.random.randn(self.output_size, self.input_size)
