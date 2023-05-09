@@ -65,12 +65,21 @@ class Model:
         outputs: List[np.ndarray] = []
 
         first_output = self.hopfield_layer(input)
-        second_output = self.hopfield_layer(first_output)
+        second_output = first_output.copy()
+        while True:
+            output = self.hopfield_layer(second_output)
+            if np.array_equal(output, second_output):
+                outputs = [output]
+                print("Converged")
+                break
+            elif np.array_equal(output, first_output):
+                outputs = [first_output, second_output]
+                print("Entered a cycle of len 2")
+                break
+            else:
+                first_output = second_output
+                second_output = output.copy()
 
-        if np.array_equal(first_output, second_output):
-            outputs = [first_output]
-        else:
-            outputs = [first_output, second_output]
         return outputs
 
     def train(self, patterns: np.ndarray) -> None:
@@ -80,6 +89,14 @@ class Model:
         Parameters:
         patterns: array containing patterns to put into hopfield memory
         """
+        print("Training patterns:")
+        with open(f"./example_patterns/train_{time()}.txt", "w") as file:
+            for pattern in patterns:
+                pattern_str = ' '.join([str(int(p)) for p in pattern])
+                file.write(pattern_str)
+                file.write('\n')
+                print(pattern_str)
+
         self.hopfield_layer._initialize_weights(patterns)
     
     def test(self, inputs: np.ndarray = None, print_outputs = False):

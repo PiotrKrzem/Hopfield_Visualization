@@ -5,8 +5,8 @@ class Arguments:
     def __init__(self) -> None:
         # -------------- Default parameters -----------
         self.model_to_load = ""
-        self.input_size = 4
-        self.patterns_file = "example"
+        self.input_size = 36
+        self.patterns_file = ""
         self.save_model = False
         self.model_name = "model"
 

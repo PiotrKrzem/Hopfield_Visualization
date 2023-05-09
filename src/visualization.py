@@ -390,12 +390,14 @@ class Visualization:
 
     def train_model(self, event):
         input_vectors = np.array(self.input_vectors)
+        if len(input_vectors.shape) == 1:
+            input_vectors = input_vectors[:,np.newaxis]
         for axis in self.output_axes:
             axis.remove()
         self.output_axes.clear()
         self.output_vectors.clear()
         self.model.train(input_vectors)
-        self.input_vectors.clear()
+        self.input_vectors = []
         print(f"Model has been trained")
         self.update_idx = 0
         self.clean_model()
@@ -416,27 +418,28 @@ class Visualization:
         normalized_output:np.ndarray = self.input - self.input.min()
         normalized_output = normalized_output / (normalized_output.max() + 1.0e-9)
         reshape_to = int(np.ceil(np.sqrt(normalized_output.shape[0])))
-        for vector in self.output_vectors:
-            if np.array_equal(vector, self.input):
-                if len(self.output_vectors) == 1:
-                    print("Converged on above response")
-                elif len(self.output_vectors) == 2:
-                    print("Entered a loop of length 2")
-                else:
-                    print(f"Entered a loop of len {len(self.output_vectors)}")
-                return
 
-        print(f"New Unique Output:\n{self.input}")
-        image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
-        img = normalized_output.reshape(reshape_to, reshape_to)
-        if np.all(self.input == 1):
-            image_axis.matshow(img, cmap = ListedColormap(['green']))
-        elif np.all(self.input == -1):
-            image_axis.matshow(img, cmap = ListedColormap(['red']))
+        if len(self.output_vectors) and np.array_equal(self.output_vectors[-1], self.input):
+            print("Converged:")
+            print(self.input)
+            return
+        elif len(self.output_vectors) >= 2 and np.array_equal(self.output_vectors[-2], self.input):
+            print("Cycle of len 2:")
+            print(self.output_vectors[-2])
+            print(self.output_vectors[-1])
+            return
         else:
-            image_axis.matshow(img, cmap = ListedColormap(['red','green']))
-        self.output_vectors.append(self.input.copy())
-        self.output_axes.append(image_axis)
+            print(f"New Unique Output:\n{self.input}")
+            image_axis = self.figure.add_axes([0+0.2*len(self.output_axes),0,0.2,0.2])
+            img = normalized_output.reshape(reshape_to, reshape_to)
+            if np.all(self.input == 1):
+                image_axis.matshow(img, cmap = ListedColormap(['green']))
+            elif np.all(self.input == -1):
+                image_axis.matshow(img, cmap = ListedColormap(['red']))
+            else:
+                image_axis.matshow(img, cmap = ListedColormap(['red','green']))
+            self.output_vectors.append(self.input.copy())
+            self.output_axes.append(image_axis)
 
     def clean_model(self):
         for data in self.layers_neurons_data:
