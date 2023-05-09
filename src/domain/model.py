@@ -163,5 +163,5 @@ class Model:
         with open(f"{file_path}", "r") as file:
             pattern_strings = file.readlines()
             patterns = np.loadtxt(pattern_strings, delimiter=' ', dtype=np.int64)
-            patterns = patterns.reshape((len(pattern_strings), patterns.shape[0]))
+            patterns = patterns.reshape((len(pattern_strings), patterns.shape[1]))
         return patterns
